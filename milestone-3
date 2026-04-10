@@ -1,0 +1,11 @@
+# Milestone 3: Frontend Development
+
+This milestone contains the frontend of the Smart Stock Inventory project.
+
+## Technologies Used
+- HTML
+- CSS
+- JavaScript
+
+## Folder Structure
+milestone-3/ ├── html/ ├── css/ └── js/
