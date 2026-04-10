@@ -1,0 +1,194 @@
+import sqlite3
+from datetime import datetime
+conn = sqlite3.connect("RetailStore.db")
+cursor = conn.cursor()
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS Store_Products (
+    product_id INTEGER PRIMARY KEY,
+    product_name TEXT NOT NULL,
+    product_category TEXT,
+    unit_price REAL,
+    supplier_name TEXT,
+    available_stock INTEGER CHECK(available_stock >= 0),
+    minimum_stock_level INTEGER
+)
+""")
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS Sales_Transactions (
+    transaction_id INTEGER PRIMARY KEY,
+    product_id INTEGER,
+    quantity_sold INTEGER,
+    transaction_time TEXT,
+    FOREIGN KEY(product_id) REFERENCES Store_Products(product_id)
+)
+""")
+
+conn.commit()
+def add_product():
+    print("\n--- Add New Product ---")
+
+    name = input("Enter Product Name: ")
+    category = input("Enter Product Category: ")
+    price = float(input("Enter Unit Price: "))
+    supplier = input("Enter Supplier Name: ")
+    stock = int(input("Enter Available Stock: "))
+    min_stock = int(input("Enter Minimum Stock Level: "))
+
+    cursor.execute("""
+    INSERT INTO Store_Products
+    (product_name, product_category, unit_price, supplier_name, available_stock, minimum_stock_level)
+    VALUES (?, ?, ?, ?, ?, ?)
+    """, (name, category, price, supplier, stock, min_stock))
+
+    conn.commit()
+    print(" Product successfully added to inventory.")
+
+def view_products():
+    print("\n--- Current Inventory Details ---")
+
+    cursor.execute("SELECT * FROM Store_Products")
+    records = cursor.fetchall()
+
+    for record in records:
+        print(record)
+def record_sale():
+    print("\n--- Record New Sale ---")
+
+    try:
+        product_id = int(input("Enter Product ID: "))
+        quantity = int(input("Enter Quantity Sold: "))
+
+        # Begin Transaction
+        conn.execute("BEGIN")
+
+        cursor.execute("""
+        SELECT available_stock, minimum_stock_level
+        FROM Store_Products
+        WHERE product_id = ?
+        """, (product_id,))
+
+        result = cursor.fetchone()
+
+        if result is None:
+            print("Product does not exist.")
+            conn.execute("ROLLBACK")
+            return
+
+        current_stock, min_stock = result
+
+        if quantity > current_stock:
+            print("Insufficient stock available.")
+            conn.execute("ROLLBACK")
+            return
+
+        updated_stock = current_stock - quantity
+
+       
+        cursor.execute("""
+        UPDATE Store_Products
+        SET available_stock = ?
+        WHERE product_id = ?
+        """, (updated_stock, product_id))
+
+   
+        transaction_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        cursor.execute("""
+        INSERT INTO Sales_Transactions
+        (product_id, quantity_sold, transaction_time)
+        VALUES (?, ?, ?)
+        """, (product_id, quantity, transaction_time))
+
+        conn.commit()
+
+        print(" Sale transaction recorded successfully.")
+
+        if updated_stock <= min_stock:
+            print("Alert: Stock has reached minimum level. Reorder required.")
+
+    except Exception as error:
+        conn.execute("ROLLBACK")
+        print(" Transaction Failed:", error)
+
+def view_sales():
+    print("\n--- Sales Transaction History ---")
+
+    cursor.execute("""
+    SELECT Sales_Transactions.transaction_id,
+           Store_Products.product_name,
+           Sales_Transactions.quantity_sold,
+           Sales_Transactions.transaction_time
+    FROM Sales_Transactions
+    JOIN Store_Products
+    ON Sales_Transactions.product_id = Store_Products.product_id
+    """)
+
+    transactions = cursor.fetchall()
+
+    for transaction in transactions:
+        print(transaction)
+
+def daily_sales_summary():
+    print("\n--- Daily Sales Summary ---")
+
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    cursor.execute("""
+    SELECT SUM(quantity_sold)
+    FROM Sales_Transactions
+    WHERE transaction_time LIKE ?
+    """, (today + "%",))
+
+    total = cursor.fetchone()[0]
+
+    if total:
+        print("Total Items Sold Today:", total)
+    else:
+        print("No sales recorded today.")
+
+def low_stock_report():
+    print("\n--- Low Stock Products Report ---")
+
+    cursor.execute("""
+    SELECT product_name, available_stock
+    FROM Store_Products
+    WHERE available_stock <= minimum_stock_level
+    """)
+
+    low_stock_items = cursor.fetchall()
+
+    for item in low_stock_items:
+        print(item)
+
+
+while True:
+    print("\n========== RETAIL STORE INVENTORY SYSTEM ==========")
+    print("1. Add Product")
+    print("2. View Inventory")
+    print("3. Record Sale")
+    print("4. View Sales History")
+    print("5. Daily Sales Summary")
+    print("6. Low Stock Report")
+    print("7. Exit")
+
+    option = input("Enter your choice: ")
+
+    if option == "1":
+        add_product()
+    elif option == "2":
+        view_products()
+    elif option == "3":
+        record_sale()
+    elif option == "4":
+        view_sales()
+    elif option == "5":
+        daily_sales_summary()
+    elif option == "6":
+        low_stock_report()
+    elif option == "7":
+        print("Exiting system...")
+        break
+    else:
+        print("Invalid choice. Please try again.")
+
+conn.close()
