@@ -1,0 +1,177 @@
+import sqlite3
+from datetime import datetime
+
+# Connect to database
+conn = sqlite3.connect("coffee_shop.db")
+cursor = conn.cursor()
+
+# Create Tables
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS ingredients(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    stock INTEGER,
+    reorder_level INTEGER
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS menu(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_name TEXT,
+    price REAL
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS recipe(
+    menu_id INTEGER,
+    ingredient_id INTEGER,
+    quantity_required INTEGER
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS sales(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    menu_id INTEGER,
+    quantity INTEGER,
+    sale_date TEXT
+)
+""")
+
+conn.commit()
+
+# ---------------- Functions ---------------- #
+
+def add_ingredient():
+    name = input("Ingredient Name: ")
+    stock = int(input("Stock Quantity: "))
+    reorder = int(input("Reorder Level: "))
+
+    cursor.execute("INSERT INTO ingredients(name, stock, reorder_level) VALUES(?,?,?)",
+                   (name, stock, reorder))
+    conn.commit()
+    print("✅ Ingredient added successfully\n")
+
+
+def view_ingredients():
+    cursor.execute("SELECT * FROM ingredients")
+    for row in cursor.fetchall():
+        print(row)
+    print()
+
+
+def add_menu():
+    name = input("Menu Item Name: ")
+    price = float(input("Price: "))
+
+    cursor.execute("INSERT INTO menu(item_name, price) VALUES(?,?)",
+                   (name, price))
+    conn.commit()
+    print("✅ Menu item added successfully\n")
+
+
+def view_menu():
+    cursor.execute("SELECT * FROM menu")
+    for row in cursor.fetchall():
+        print(row)
+    print()
+
+
+def add_recipe():
+    menu_id = int(input("Enter Menu ID: "))
+    ingredient_id = int(input("Enter Ingredient ID: "))
+    qty = int(input("Quantity Required: "))
+
+    cursor.execute("INSERT INTO recipe VALUES(?,?,?)",
+                   (menu_id, ingredient_id, qty))
+    conn.commit()
+    print("✅ Recipe added successfully\n")
+
+
+def sell_item():
+    menu_id = int(input("Enter Menu ID to Sell: "))
+    quantity = int(input("Quantity Sold: "))
+
+    # Get ingredients for menu
+    cursor.execute("SELECT ingredient_id, quantity_required FROM recipe WHERE menu_id=?", (menu_id,))
+    items = cursor.fetchall()
+
+    for item in items:
+        ingredient_id = item[0]
+        qty_required = item[1] * quantity
+
+        cursor.execute("UPDATE ingredients SET stock = stock - ? WHERE id=?",
+                       (qty_required, ingredient_id))
+
+    # Record Sale
+    cursor.execute("INSERT INTO sales(menu_id, quantity, sale_date) VALUES(?,?,?)",
+                   (menu_id, quantity, datetime.now().strftime("%Y-%m-%d")))
+    conn.commit()
+
+    print("✅ Sale recorded and stock updated\n")
+
+
+def low_stock_alert():
+    cursor.execute("SELECT * FROM ingredients WHERE stock <= reorder_level")
+    items = cursor.fetchall()
+
+    if items:
+        print("⚠️ Low Stock Alert:")
+        for item in items:
+            print(item)
+    else:
+        print("✅ All ingredients sufficient\n")
+    print()
+
+
+def sales_report():
+    cursor.execute("""
+    SELECT menu.item_name, SUM(sales.quantity)
+    FROM sales
+    JOIN menu ON sales.menu_id = menu.id
+    GROUP BY sales.menu_id
+    """)
+    for row in cursor.fetchall():
+        print("Item:", row[0], "Total Sold:", row[1])
+    print()
+
+
+# -------------- Main Menu ---------------- #
+
+while True:
+    print("☕ Coffee Shop SmartStock System")
+    print("1. Add Ingredient")
+    print("2. View Ingredients")
+    print("3. Add Menu Item")
+    print("4. View Menu")
+    print("5. Add Recipe")
+    print("6. Sell Item")
+    print("7. Low Stock Alert")
+    print("8. Sales Report")
+    print("9. Exit")
+
+    choice = input("Enter choice: ")
+
+    if choice == '1':
+        add_ingredient()
+    elif choice == '2':
+        view_ingredients()
+    elif choice == '3':
+        add_menu()
+    elif choice == '4':
+        view_menu()
+    elif choice == '5':
+        add_recipe()
+    elif choice == '6':
+        sell_item()
+    elif choice == '7':
+        low_stock_alert()
+    elif choice == '8':
+        sales_report()
+    elif choice == '9':
+        print("👋 Exiting System")
+        break
+    else:
+        print("❌ Invalid choice\n")
