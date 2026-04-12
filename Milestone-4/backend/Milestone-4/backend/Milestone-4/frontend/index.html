@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ManageIt — Admin Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>ManageIt — Smart Stock Dashboard</h1>
+
+    <div class="cards">
+        <div class="card">Total Products: <span id="totalProducts">0</span></div>
+        <div class="card">Total Sales: ₹<span id="totalSales">0</span></div>
+        <div class="card">Active Alerts: <span id="activeAlerts">0</span></div>
+        <div class="card">Revenue: ₹<span id="revenue">0</span></div>
+    </div>
+
+    <h2>Recent Alerts</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>SKU</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Quantity</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="alerts-table-body"></tbody>
+    </table>
+
+    <script src="script.js"></script>
+</body>
+</html>
